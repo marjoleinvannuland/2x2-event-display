@@ -41,7 +41,7 @@ app.layout = html.Div(
                 id="upload-data-div",
                 text="Upload Flow HDF5 File",
                 max_file_size=10000,
-                chunk_size=5,
+                chunk_size=25,
                 default_style={
                     "width": "15em",
                     "padding": "0",
@@ -136,13 +136,14 @@ def increment(n, evid, max_value):
     Output('event-id', 'data', allow_duplicate=True),
     Input('prev-button', 'n_clicks'),
     State('event-id', 'data'),
+    State('data-length', 'data'),
     prevent_initial_call=True
 )
-def decrement(n, evid):
+def decrement(n, evid, max_value):
     if n > 0:
         if evid > 0:
             return evid - 1
-        return evid
+        return max_value - 1
 
 @app.callback(
     Output('event-id', 'data', allow_duplicate=True),
@@ -159,10 +160,11 @@ def set_evid(value, max_value):
 
 @app.callback(
     Output('evid-div', 'children'),
-    Input('event-id', 'data')
+    Input('event-id', 'data'),
+    State('data-length', 'data'),
 )
-def update_div(evid):
-    return f'Event ID: {evid}'
+def update_div(evid, max_value):
+    return f'Event ID: {evid}/{max_value}'
 
 # Callback to display the event
 # =============================
