@@ -96,6 +96,7 @@ app.layout = html.Div(
         State("upload-data-div", "fileNames"),
         State("upload-data-div", "upload_id"),
     ],
+    prevent_initial_call=True
 )
 def upload_file(is_completed, filename, filenames, upload_id):
     """
@@ -143,7 +144,7 @@ def decrement(n, evid, max_value):
     if n > 0:
         if evid > 0:
             return evid - 1
-        return max_value - 1
+        return max_value - 1 # wrap around
 
 @app.callback(
     Output('event-id', 'data', allow_duplicate=True),
@@ -171,7 +172,8 @@ def update_div(evid, max_value):
 @app.callback(
     Output('3d-graph', 'figure'),
     Input('filename', 'data'),
-    Input('event-id', 'data')
+    Input('event-id', 'data'),
+    prevent_initial_call=True
 )
 def update_graph(filename, evid):
     if filename is not None:
@@ -179,6 +181,9 @@ def update_graph(filename, evid):
         return create_3d_figure(data, evid)
 
 
+
+# Cleaning up
+# ===========
 @atexit.register
 def clean_cache():
     """Delete uploaded files"""
