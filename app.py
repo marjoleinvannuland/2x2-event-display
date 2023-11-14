@@ -41,7 +41,7 @@ app.layout = html.Div(
                 id="upload-data-div",
                 text="Upload Flow HDF5 File",
                 max_file_size=10000,
-                chunk_size=25,
+                chunk_size=5,
                 default_style={
                     "width": "15em",
                     "padding": "0",
