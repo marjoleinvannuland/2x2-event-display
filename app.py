@@ -176,6 +176,7 @@ def update_div(evid, max_value):
     prevent_initial_call=True
 )
 def update_graph(filename, evid):
+    #TODO: this gives an error if the cache is cleaned, since the filename is not reset to None
     if filename is not None:
         data, _ = parse_contents(filename)
         return create_3d_figure(data, evid)

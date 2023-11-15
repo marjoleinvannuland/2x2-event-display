@@ -119,9 +119,12 @@ def create_3d_figure(data, evid):
 
     # Draw the TPC
     tpc_center, anodes, cathodes = draw_tpc(sim_version)
+    light_detectors = draw_light_detectors() # this doesn't do anything yet
+    
     fig.add_traces(tpc_center)
     fig.add_traces(anodes)
     fig.add_traces(cathodes)
+    fig.add_traces(light_detectors) # not implemented yet
 
     return fig
 
@@ -211,3 +214,10 @@ def draw_anode_planes(x_boundaries, y_boundaries, z_boundaries, **kwargs):
             traces.append(go.Surface(x=x, y=y, z=z, **kwargs))
 
     return traces
+
+def draw_light_detectors(data):
+    try:
+        data["/light/"]
+    except:
+        print("No light information found, not plotting light detectors")
+    return []
