@@ -216,12 +216,103 @@ def draw_anode_planes(x_boundaries, y_boundaries, z_boundaries, **kwargs):
 
     return traces
 
-def draw_light_detectors(data):
+def draw_light_detectors(data, evid):
     try:
-        data["/light/"]
+        charge = data["charge/events", evid][["id", "unix_ts"]]
+        num_light = data["light/events/data"].shape[0]
+        light = data["light/events", slice(0, num_light)][["id", "utime_ms"]] # we have to try them all, events may not be time ordered
     except:
         print("No light information found, not plotting light detectors")
-    return []
+    
+    match_light = match_light_to_charge_event(charge, light, evid)
+
+    waveforms_all_detectors = get_waveforms_all_detectors(data, match_light)
+
+    # make a list of the sum of the waveform and the channel index
+    integral = np.sum(np.sum(waveforms_all_detectors, axis=2), axis=0)
+    max_integral = np.max(integral)
+    index = np.arange(0, waveforms_all_detectors.shape[1], 1)
+    # plot for each of the 96 channels per tpc the sum of the adc values
+    drawn_objects = []
+    #drawn_objects.extend(plot_light(geometry, integral, index, max_integral))
+
+    return drawn_objects
+
+def match_light_to_charge_event(charge, light, evid):
+    """
+    Match the light events to the charge event by looking at proximity in time.
+    Use unix time for this, since it should refer to the same time in both readout systems.
+    For now we just take all the light within 1s from the charge event time.
+    """
+    matches = []
+    for i in range(len(light)):
+        if np.abs(light["utime_ms"][i][0] / 1000 - charge["unix_ts"][0]) < 0.5:
+            matches.append([charge["id"][0], light["id"][i]])
+
+    match_light = []
+    for i in range(len(matches)):
+        if matches[i][0] == evid: # just checking that we get light for the right charge event
+            match_light.append(matches[i][1])
+        return match_light
+    
+def get_waveforms_all_detectors(data, match_light):
+    """
+    Get the light waveforms for the matched light events.
+    """
+    light_wvfm = data["/light/wvfm", match_light]
+
+    samples_mod0 = light_wvfm["samples"][:, 0:2, :, :]
+    samples_mod1 = light_wvfm["samples"][:, 2:4, :, :]
+    samples_mod2 = light_wvfm["samples"][:, 4:6, :, :]
+    samples_mod3 = light_wvfm["samples"][:, 6:8, :, :]
+
+    sipm_channels_module0 = np.array(
+        [2, 3, 4, 5, 6, 7]
+        + [9, 10]
+        + [11, 12]
+        + [13, 14]
+        + [18, 19, 20, 21, 22, 23]
+        + [25, 26]
+        + [27, 28]
+        + [29, 30]
+        + [34, 35, 36, 37, 38, 39]
+        + [41, 42]
+        + [43, 44]
+        + [45, 46]
+        + [50, 51, 52, 53, 54, 55]
+        + [57, 58]
+        + [59, 60]
+        + [61, 62]
+    )
+
+    sipm_channels_modules = np.array(
+        [4, 5, 6, 7, 8, 9]
+        + [10, 11, 12, 13, 14, 15]
+        + [20, 21, 22, 23, 24, 25]
+        + [26, 27, 28, 29, 30, 31]
+        + [36, 37, 38, 39, 40, 41]
+        + [42, 43, 44, 45, 46, 47]
+        + [52, 53, 54, 55, 56, 57]
+        + [58, 59, 60, 61, 62, 63]
+    )
+    adcs_mod0 = samples_mod0[:, :, sipm_channels_module0, :]
+    adcs_mod1 = samples_mod1[:, :, sipm_channels_modules, :]
+    adcs_mod2 = samples_mod2[:, :, sipm_channels_modules, :]
+    adcs_mod3 = samples_mod3[:, :, sipm_channels_modules, :]
+
+    all_adcs = np.concatenate((adcs_mod0, adcs_mod1, adcs_mod2, adcs_mod3), axis=1)
+
+    # instead of a (m, 8, 48, 1000) array, we want a (m, 4, 96, 1000) array
+    # modules instead of tpcs, and 96 channels per module
+    m = len(match_light)
+    all_modules = all_adcs.reshape((m, 4, 96, 1000))
+    
+    # now we make a full array for all the modules
+    # could have been done in one step, but this is easier to read
+    all_detector = all_modules.reshape((m, 384, 1000))
+
+    return all_detector
+    
 
 # TODO: get detector geometry info from flow file to make this work
 # def plot_light(this_detector, n_photons, op_indeces, max_integral):
