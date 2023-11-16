@@ -120,7 +120,7 @@ def create_3d_figure(data, evid):
 
     # Draw the TPC
     tpc_center, anodes, cathodes = draw_tpc(sim_version)
-    light_detectors = draw_light_detectors() # this doesn't do anything yet
+    light_detectors = draw_light_detectors(data,evid) # this doesn't do anything yet
     
     fig.add_traces(tpc_center)
     fig.add_traces(anodes)
@@ -223,9 +223,14 @@ def draw_light_detectors(data, evid):
         light = data["light/events", slice(0, num_light)][["id", "utime_ms"]] # we have to try them all, events may not be time ordered
     except:
         print("No light information found, not plotting light detectors")
+        return []
     
     match_light = match_light_to_charge_event(charge, light, evid)
 
+    if match_light is None:
+        print(f"No light event matches found for charge event {evid}, not plotting light detectors")
+        return []
+    
     waveforms_all_detectors = get_waveforms_all_detectors(data, match_light)
 
     # make a list of the sum of the waveform and the channel index
@@ -253,7 +258,10 @@ def match_light_to_charge_event(charge, light, evid):
     for i in range(len(matches)):
         if matches[i][0] == evid: # just checking that we get light for the right charge event
             match_light.append(matches[i][1])
-        return match_light
+    if len(match_light) == 0:
+        match_light = None # no light for this charge event
+    
+    return match_light
     
 def get_waveforms_all_detectors(data, match_light):
     """
