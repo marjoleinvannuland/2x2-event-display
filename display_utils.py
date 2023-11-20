@@ -237,9 +237,10 @@ def draw_light_detectors(data, evid):
     integral = np.sum(np.sum(waveforms_all_detectors, axis=2), axis=0)
     max_integral = np.max(integral)
     index = np.arange(0, waveforms_all_detectors.shape[1], 1)
+
     # plot for each of the 96 channels per tpc the sum of the adc values
     drawn_objects = []
-    #drawn_objects.extend(plot_light(geometry, integral, index, max_integral))
+    drawn_objects.extend(plot_light_traps(data, integral, index, max_integral))
 
     return drawn_objects
 
@@ -322,8 +323,7 @@ def get_waveforms_all_detectors(data, match_light):
     return all_detector
     
 
-# TODO: get detector geometry info from flow file to make this work
-# def plot_light(this_detector, n_photons, op_indeces, max_integral):
+def plot_light_traps(data, n_photons, op_indeces, max_integral):
     """Plot optical detectors"""
     drawn_objects = []
     ys = np.flip(np.array([-595.43, -545.68, -490.48, -440.73, -385.53, -335.78,
@@ -332,16 +332,19 @@ def get_waveforms_all_detectors(data, match_light):
                            384.15, 442.10, 489.10, 547.05, 594.05])/10)
     light_width = ys[1]-ys[0]
 
-    for ix in range(0,this_detector.tpc_borders.shape[0]):
+    det_bounds = data["/geometry_info/det_bounds/data"]
+    COLORSCALE = plotly.colors.make_colorscale(plotly.colors.convert_colors_to_same_type(plotly.colors.sequential.YlOrRd)[0])
+
+    for ix in range(0,det_bounds.shape[0]):
         for ilight, light_y in enumerate(ys):
             for iside in range(2): 
 
                 opid = ilight + iside*len(ys) + ix*len(ys)*2
                 if opid not in op_indeces:
                     continue
-                xx = np.linspace(this_detector.tpc_borders[ix][2][0], this_detector.tpc_borders[ix][2][1], 2)
-                zz = np.linspace(light_y - light_width/2 + this_detector.tpc_offsets[0][1] + 0.25,
-                                 light_y + light_width/2 + this_detector.tpc_offsets[0][1] - 0.25, 2)
+                xx = np.linspace(det_bounds[ix][0][0][0], det_bounds[ix][0][1][0], 2)
+                zz = np.linspace(light_y - light_width/2 + det_bounds[0][0][1] + 0.25,
+                                 light_y + light_width/2 + det_bounds[0][0][1] - 0.25, 2)
 
                 xx,zz = np.meshgrid(xx,zz)
                 light_color=[[0.0, get_continuous_color(COLORSCALE, intermed=max(0,n_photons[opid])/max_integral)],
@@ -353,7 +356,7 @@ def get_waveforms_all_detectors(data, match_light):
                     flip = -1
 
                 opid_str = f"opid_{opid}"
-                light_plane = dict(type='surface', y=xx, x=np.full(xx.shape, this_detector.tpc_borders[ix][0][iside+flip]), z=zz,
+                light_plane = dict(type='surface', y=xx, x=np.full(xx.shape, det_bounds[ix][0][0][iside+flip]), z=zz,
                                    opacity=0.4,
                                    hoverinfo='text',
                                    ids=[[opid_str, opid_str], [opid_str, opid_str]],
@@ -365,3 +368,44 @@ def get_waveforms_all_detectors(data, match_light):
                 drawn_objects.append(light_plane)
 
     return drawn_objects
+
+def get_continuous_color(colorscale, intermed):
+    """
+    Plotly continuous colorscales assign colors to the range [0, 1]. This function computes the intermediate
+    color for any value in that range.
+
+    Plotly doesn't make the colorscales directly accessible in a common format.
+    Some are ready to use:
+
+        colorscale = plotly.colors.PLOTLY_SCALES["Greens"]
+
+    Others are just swatches that need to be constructed into a colorscale:
+
+        viridis_colors, scale = plotly.colors.convert_colors_to_same_type(plotly.colors.sequential.Viridis)
+        colorscale = plotly.colors.make_colorscale(viridis_colors, scale=scale)
+
+    :param colorscale: A plotly continuous colorscale defined with RGB string colors.
+    :param intermed: value in the range [0, 1]
+    :return: color in rgb string format
+    :rtype: str
+    """
+    if len(colorscale) < 1:
+        raise ValueError("colorscale must have at least one color")
+
+    if intermed <= 0 or len(colorscale) == 1:
+        return colorscale[0][1]
+    if intermed >= 1:
+        return colorscale[-1][1]
+
+    for cutoff, color in colorscale:
+        if intermed > cutoff:
+            low_cutoff, low_color = cutoff, color
+        if intermed <= cutoff:
+            high_cutoff, high_color = cutoff, color
+            break
+
+    # noinspection PyUnboundLocalVariable
+    return plotly.colors.find_intermediate_color(
+        lowcolor=low_color, highcolor=high_color,
+        intermed=((intermed - low_cutoff) / (high_cutoff - low_cutoff)),
+        colortype="rgb")
