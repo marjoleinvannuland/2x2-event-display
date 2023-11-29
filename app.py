@@ -10,6 +10,7 @@ import shutil
 
 from dash import dcc
 from dash import html
+#from dash import no_update
 from dash.exceptions import PreventUpdate
 from dash_extensions.enrich import Output, DashProxy, Input, State, MultiplexerTransform
 
@@ -30,7 +31,7 @@ app.layout = html.Div(
     [
         # Hidden divs to store data
         dcc.Location(id="url"),
-        dcc.Store(id="filename", storage_type="session"),
+        dcc.Store(id="filename", storage_type="local", data=None),
         dcc.Store(id='data-length', data=0),
         # Header
         html.H1(children="2x2 event display", style={"textAlign": "center"}),
@@ -70,14 +71,29 @@ app.layout = html.Div(
         dcc.Store(id='event-id', data=0),
         html.Div(id='evid-div', style={"textAlign": "center"}),
         # 3D graph
-        dcc.Graph(id='3d-graph', style={'height': '70vh', 'width': '50vw'}),
 
+
+        #html.Div(dcc.Graph(id='3d-graph', style={'height': '70vh', 'width': '50vw'})),
+        # Light waveform graph
+        #dcc.Graph(id="light-waveform", style={'height': '30vh', 'width': '50vw'}),
         # MORE STUFF HERE
+
+        html.Div([
+            # Existing 3D graph
+            html.Div(dcc.Graph(id='3d-graph', style={'height': '70vh', 'width': '50vw'})),
+
+            # New Light waveform graph
+            html.Div(dcc.Graph(id="light-waveform", style={'height': '30vh', 'width': '25vw'})),
+
+            # New Another Graph (replace with your actual component)
+            html.Div(dcc.Graph(id="another-graph", style={'height': '30vh', 'width': '25vw'})),
+        ], style={'display': 'flex'}),
     ]
 )
 
 
 # Callbacks
+
 
 # Callback to handle the upload
 # =============================
@@ -98,13 +114,13 @@ app.layout = html.Div(
     ],
     prevent_initial_call=True
 )
-def upload_file(is_completed, filename, filenames, upload_id):
+def upload_file(is_completed, current_filename, filenames, upload_id):
     """
     Upload HDF5 file to cache. If the upload is completed,
     update the filename. Initialise the event ID to 0.
     """
     if not is_completed:
-        return filename, "no file uploaded", 0, 0
+        raise PreventUpdate
 
     if filenames is not None:
         if upload_id:
@@ -112,9 +128,12 @@ def upload_file(is_completed, filename, filenames, upload_id):
         else:
             root_folder = Path(UPLOAD_FOLDER_ROOT)
         _, num_events = parse_contents(str(root_folder / filenames[0]))
-        return str(root_folder / filenames[0]), basename(filenames[0]), 0, num_events
+        new_filename = str(root_folder / filenames[0])
+        return new_filename, basename(filenames[0]), 0, num_events
 
-    return filename, "no file uploaded", 0, 0
+    return current_filename, "no file uploaded", 0, 0
+
+
 
 # Callbacks to handle the event ID
 # =================================
@@ -176,11 +195,10 @@ def update_div(evid, max_value):
     prevent_initial_call=True
 )
 def update_graph(filename, evid):
-    # TODO: fix, this gives an error if the cache is cleaned, since the filename is not reset to None
     if filename is not None:
+        print("filenam", filename)
         data, _ = parse_contents(filename)
         return create_3d_figure(data, evid)
-
 
 
 # Cleaning up
@@ -192,6 +210,7 @@ def clean_cache():
         shutil.rmtree(Path(UPLOAD_FOLDER_ROOT))
     except OSError as err:
         print("Can't clean %s : %s" % (UPLOAD_FOLDER_ROOT, err.strerror))
+
 
 # Run the app
 if __name__ == "__main__":

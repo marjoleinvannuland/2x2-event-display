@@ -16,6 +16,7 @@ def parse_contents(filename):
 
 def create_3d_figure(data, evid):
     fig = go.Figure()
+    print("here we go")
     # Select the hits for the current event
     prompthits_ev = data["charge/events", "charge/calib_prompt_hits", evid]
     finalhits_ev = data["charge/events", "charge/calib_final_hits", evid]
@@ -47,6 +48,7 @@ def create_3d_figure(data, evid):
             prompthits_segs = None
 
     # Plot the prompt hits
+    print("Plotting prompt hits")
     prompthits_traces = go.Scatter3d(
         x=prompthits_ev.data["x"].flatten(),
         y=(prompthits_ev.data["y"].flatten()),
@@ -74,9 +76,11 @@ def create_3d_figure(data, evid):
         customdata=prompthits_ev.data["E"].flatten() * 1000,
         hovertemplate="<b>x:%{x:.3f}</b><br>y:%{y:.3f}<br>z:%{z:.3f}<br>E:%{customdata:.3f}",
     )
+    print("Adding prompt hits to figure")
     fig.add_traces(prompthits_traces)
 
     # Plot the final hits
+    print("Plotting final hits")
     finalhits_traces = go.Scatter3d(
         x=finalhits_ev.data["x"].flatten(),
         y=(finalhits_ev.data["y"].flatten()),
@@ -104,8 +108,10 @@ def create_3d_figure(data, evid):
         customdata=finalhits_ev.data["E"].flatten() * 1000,
         hovertemplate="<b>x:%{x:.3f}</b><br>y:%{y:.3f}<br>z:%{z:.3f}<br>E:%{customdata:.3f}",
     )
+    print("Adding final hits to figure")
     fig.add_traces(finalhits_traces)
 
+    print("Plotting segments")
     if prompthits_segs is not None:
         segs_traces = plot_segs(
             prompthits_segs[0, :, 0, 0],
@@ -116,16 +122,20 @@ def create_3d_figure(data, evid):
             line_color="red",
             showlegend=True,
         )
+        print("Adding segments to figure")
         fig.add_traces(segs_traces)
 
     # Draw the TPC
+    print("Drawing TPC")
     tpc_center, anodes, cathodes = draw_tpc(sim_version)
-    light_detectors = draw_light_detectors(data,evid) # this doesn't do anything yet
-    
+    light_detectors = draw_light_detectors(data, evid)  # this doesn't do anything yet
+
+    print("Adding TPC to figure")
     fig.add_traces(tpc_center)
     fig.add_traces(anodes)
     fig.add_traces(cathodes)
-    fig.add_traces(light_detectors) # not implemented yet
+    print("Adding light detectors to figure")
+    fig.add_traces(light_detectors)  # not implemented yet
 
     return fig
 
@@ -216,21 +226,26 @@ def draw_anode_planes(x_boundaries, y_boundaries, z_boundaries, **kwargs):
 
     return traces
 
+
 def draw_light_detectors(data, evid):
     try:
         charge = data["charge/events", evid][["id", "unix_ts"]]
         num_light = data["light/events/data"].shape[0]
-        light = data["light/events", slice(0, num_light)][["id", "utime_ms"]] # we have to try them all, events may not be time ordered
+        light = data["light/events", slice(0, num_light)][
+            ["id", "utime_ms"]
+        ]  # we have to try them all, events may not be time ordered
     except:
         print("No light information found, not plotting light detectors")
         return []
-    
+
     match_light = match_light_to_charge_event(charge, light, evid)
 
     if match_light is None:
-        print(f"No light event matches found for charge event {evid}, not plotting light detectors")
+        print(
+            f"No light event matches found for charge event {evid}, not plotting light detectors"
+        )
         return []
-    
+
     waveforms_all_detectors = get_waveforms_all_detectors(data, match_light)
 
     # make a list of the sum of the waveform and the channel index
@@ -243,6 +258,7 @@ def draw_light_detectors(data, evid):
     drawn_objects.extend(plot_light_traps(data, integral, index, max_integral))
 
     return drawn_objects
+
 
 def match_light_to_charge_event(charge, light, evid):
     """
@@ -257,13 +273,16 @@ def match_light_to_charge_event(charge, light, evid):
 
     match_light = []
     for i in range(len(matches)):
-        if matches[i][0] == evid: # just checking that we get light for the right charge event
+        if (
+            matches[i][0] == evid
+        ):  # just checking that we get light for the right charge event
             match_light.append(matches[i][1])
     if len(match_light) == 0:
-        match_light = None # no light for this charge event
-    
+        match_light = None  # no light for this charge event
+
     return match_light
-    
+
+
 def get_waveforms_all_detectors(data, match_light):
     """
     Get the light waveforms for the matched light events.
@@ -315,40 +334,83 @@ def get_waveforms_all_detectors(data, match_light):
     # modules instead of tpcs, and 96 channels per module
     m = len(match_light)
     all_modules = all_adcs.reshape((m, 4, 96, 1000))
-    
+
     # now we make a full array for all the modules
     # could have been done in one step, but this is easier to read
     all_detector = all_modules.reshape((m, 384, 1000))
 
     return all_detector
-    
+
 
 def plot_light_traps(data, n_photons, op_indeces, max_integral):
     """Plot optical detectors"""
     drawn_objects = []
-    ys = np.flip(np.array([-595.43, -545.68, -490.48, -440.73, -385.53, -335.78,
-                           -283.65, -236.65, -178.70, -131.70, -73.75, -26.75,
-                           25.38, 75.13, 130.33, 180.08, 235.28, 285.03, 337.15,
-                           384.15, 442.10, 489.10, 547.05, 594.05])/10)
-    light_width = ys[1]-ys[0]
+    ys = np.flip(
+        np.array(
+            [
+                -595.43,
+                -545.68,
+                -490.48,
+                -440.73,
+                -385.53,
+                -335.78,
+                -283.65,
+                -236.65,
+                -178.70,
+                -131.70,
+                -73.75,
+                -26.75,
+                25.38,
+                75.13,
+                130.33,
+                180.08,
+                235.28,
+                285.03,
+                337.15,
+                384.15,
+                442.10,
+                489.10,
+                547.05,
+                594.05,
+            ]
+        )
+        / 10
+    )
+    light_width = ys[1] - ys[0]
 
     det_bounds = data["/geometry_info/det_bounds/data"]
-    COLORSCALE = plotly.colors.make_colorscale(plotly.colors.convert_colors_to_same_type(plotly.colors.sequential.YlOrRd)[0])
+    COLORSCALE = plotly.colors.make_colorscale(
+        plotly.colors.convert_colors_to_same_type(plotly.colors.sequential.YlOrRd)[0]
+    )
 
-    for ix in range(0,det_bounds.shape[0]):
+    for ix in range(0, det_bounds.shape[0]):
         for ilight, light_y in enumerate(ys):
-            for iside in range(2): 
-
-                opid = ilight + iside*len(ys) + ix*len(ys)*2
+            for iside in range(2):
+                opid = ilight + iside * len(ys) + ix * len(ys) * 2
                 if opid not in op_indeces:
                     continue
                 xx = np.linspace(det_bounds[ix][0][0][0], det_bounds[ix][0][1][0], 2)
-                zz = np.linspace(light_y - light_width/2 + det_bounds[0][0][1] + 0.25,
-                                 light_y + light_width/2 + det_bounds[0][0][1] - 0.25, 2)
+                zz = np.linspace(
+                    light_y - light_width / 2 + det_bounds[0][0][1] + 0.25,
+                    light_y + light_width / 2 + det_bounds[0][0][1] - 0.25,
+                    2,
+                )
 
-                xx,zz = np.meshgrid(xx,zz)
-                light_color=[[0.0, get_continuous_color(COLORSCALE, intermed=max(0,n_photons[opid])/max_integral)],
-                             [1.0, get_continuous_color(COLORSCALE, intermed=max(0,n_photons[opid])/max_integral)]]
+                xx, zz = np.meshgrid(xx, zz)
+                light_color = [
+                    [
+                        0.0,
+                        get_continuous_color(
+                            COLORSCALE, intermed=max(0, n_photons[opid]) / max_integral
+                        ),
+                    ],
+                    [
+                        1.0,
+                        get_continuous_color(
+                            COLORSCALE, intermed=max(0, n_photons[opid]) / max_integral
+                        ),
+                    ],
+                ]
 
                 if ix % 2 == 0:
                     flip = 0
@@ -356,18 +418,24 @@ def plot_light_traps(data, n_photons, op_indeces, max_integral):
                     flip = -1
 
                 opid_str = f"opid_{opid}"
-                light_plane = dict(type='surface', y=xx, x=np.full(xx.shape, det_bounds[ix][0][0][iside+flip]), z=zz,
-                                   opacity=0.4,
-                                   hoverinfo='text',
-                                   ids=[[opid_str, opid_str], [opid_str, opid_str]],
-                                   text=f'Optical detector {opid} waveform integral<br>{n_photons[opid]:.2e}',
-                                   colorscale=light_color,
-                                   showlegend=False,
-                                   showscale=False)
+                light_plane = dict(
+                    type="surface", 
+                    y=np.full(xx.shape, det_bounds[ix][0][0][iside + flip])/10 -240,
+                    x=xx/10,
+                    z=zz/10+1300,
+                    opacity=0.4,
+                    hoverinfo="text",
+                    ids=[[opid_str, opid_str], [opid_str, opid_str]],
+                    text=f"Optical detector {opid} waveform integral<br>{n_photons[opid]:.2e}",
+                    colorscale=light_color,
+                    showlegend=False,
+                    showscale=False,
+                )
 
                 drawn_objects.append(light_plane)
 
     return drawn_objects
+
 
 def get_continuous_color(colorscale, intermed):
     """
@@ -406,6 +474,8 @@ def get_continuous_color(colorscale, intermed):
 
     # noinspection PyUnboundLocalVariable
     return plotly.colors.find_intermediate_color(
-        lowcolor=low_color, highcolor=high_color,
+        lowcolor=low_color,
+        highcolor=high_color,
         intermed=((intermed - low_cutoff) / (high_cutoff - low_cutoff)),
-        colortype="rgb")
+        colortype="rgb",
+    )
