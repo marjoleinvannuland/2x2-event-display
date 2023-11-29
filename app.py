@@ -14,7 +14,7 @@ from dash import html
 from dash.exceptions import PreventUpdate
 from dash_extensions.enrich import Output, DashProxy, Input, State, MultiplexerTransform
 
-from display_utils import parse_contents, create_3d_figure
+from display_utils import parse_contents, create_3d_figure, plot_waveform
 
 from os.path import basename
 from pathlib import Path
@@ -70,24 +70,18 @@ app.layout = html.Div(
         html.Button('Next Event', id='next-button', n_clicks=0),
         dcc.Store(id='event-id', data=0),
         html.Div(id='evid-div', style={"textAlign": "center"}),
-        # 3D graph
-
-
-        #html.Div(dcc.Graph(id='3d-graph', style={'height': '70vh', 'width': '50vw'})),
-        # Light waveform graph
-        #dcc.Graph(id="light-waveform", style={'height': '30vh', 'width': '50vw'}),
-        # MORE STUFF HERE
-
+        # Graphs
         html.Div([
             # Existing 3D graph
             html.Div(dcc.Graph(id='3d-graph', style={'height': '70vh', 'width': '50vw'})),
 
             # New Light waveform graph
-            html.Div(dcc.Graph(id="light-waveform", style={'height': '30vh', 'width': '25vw'})),
+            html.Div(dcc.Graph(id="light-waveform", style={'height': '50vh', 'width': '35vw'})),
 
-            # New Another Graph (replace with your actual component)
-            html.Div(dcc.Graph(id="another-graph", style={'height': '30vh', 'width': '25vw'})),
+            
         ], style={'display': 'flex'}),
+        # New Another Graph (replace with your actual component)
+        html.Div(dcc.Graph(id="another-graph", style={'height': '30vh', 'width': '35vw', 'float': 'right'})),
     ]
 )
 
@@ -196,9 +190,22 @@ def update_div(evid, max_value):
 )
 def update_graph(filename, evid):
     if filename is not None:
-        print("filenam", filename)
         data, _ = parse_contents(filename)
         return create_3d_figure(data, evid)
+    
+@app.callback(
+    Input('filename', 'data'),
+    Input('event-id', 'data'),
+    Input('3d-graph', 'clickData'),
+    Output('light-waveform', 'figure'),
+)
+def update_light_waveform(filename, evid, clickData):
+    if clickData is not None:
+        if filename is not None:
+            data, _ = parse_contents(filename)
+            opid = clickData['points'][0]['curveNumber']
+            return plot_waveform(data, evid, opid)
+    return go.Figure()
 
 
 # Cleaning up

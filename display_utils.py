@@ -128,14 +128,14 @@ def create_3d_figure(data, evid):
     # Draw the TPC
     print("Drawing TPC")
     tpc_center, anodes, cathodes = draw_tpc(sim_version)
-    light_detectors = draw_light_detectors(data, evid)  # this doesn't do anything yet
+    light_detectors = draw_light_detectors(data, evid)
 
     print("Adding TPC to figure")
     fig.add_traces(tpc_center)
     fig.add_traces(anodes)
     fig.add_traces(cathodes)
     print("Adding light detectors to figure")
-    fig.add_traces(light_detectors)  # not implemented yet
+    fig.add_traces(light_detectors)
 
     return fig
 
@@ -435,6 +435,39 @@ def plot_light_traps(data, n_photons, op_indeces, max_integral):
                 drawn_objects.append(light_plane)
 
     return drawn_objects
+
+def plot_waveform(data, evid, opid):
+    try:
+        charge = data["charge/events", evid][["id", "unix_ts"]]
+        num_light = data["light/events/data"].shape[0]
+        light = data["light/events", slice(0, num_light)][
+            ["id", "utime_ms"]
+        ]  # we have to try them all, events may not be time ordered
+    except:
+        print("No light information found, not plotting light waveform")
+        return []
+
+    match_light = match_light_to_charge_event(charge, light, evid)
+
+    if match_light is None:
+        print(
+            f"No light event matches found for charge event {evid}, not plotting light waveform"
+        )
+        return []
+
+    fig = go.Figure()
+    waveforms_all_detectors = get_waveforms_all_detectors(data, match_light)
+    wvfm_opid = waveforms_all_detectors[:, opid, :]
+    
+    x = np.arange(0, 1000, 1)
+    y = np.sum(wvfm_opid, axis=0)
+    drawn_objects = go.Scatter(x=x, y=y)
+    fig.add_traces(drawn_objects)
+    
+    fig.update_xaxes(title_text='Time [ticks] (1 ns)')
+    fig.update_yaxes(title_text='Adc counts')
+    return fig
+
 
 
 def get_continuous_color(colorscale, intermed):
