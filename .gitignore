@@ -1,0 +1,4 @@
+# Do not accidentally commit cache
+__pycache__
+
+# Other files to ignore
