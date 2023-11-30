@@ -10,10 +10,11 @@ import shutil
 
 from dash import dcc
 from dash import html
+#from dash import no_update
 from dash.exceptions import PreventUpdate
 from dash_extensions.enrich import Output, DashProxy, Input, State, MultiplexerTransform
 
-from display_utils import parse_contents, create_3d_figure
+from display_utils import parse_contents, create_3d_figure, plot_waveform
 
 from os.path import basename
 from pathlib import Path
@@ -30,7 +31,7 @@ app.layout = html.Div(
     [
         # Hidden divs to store data
         dcc.Location(id="url"),
-        dcc.Store(id="filename", storage_type="session"),
+        dcc.Store(id="filename", storage_type="local", data=None),
         dcc.Store(id='data-length', data=0),
         # Header
         html.H1(children="2x2 event display", style={"textAlign": "center"}),
@@ -69,15 +70,24 @@ app.layout = html.Div(
         html.Button('Next Event', id='next-button', n_clicks=0),
         dcc.Store(id='event-id', data=0),
         html.Div(id='evid-div', style={"textAlign": "center"}),
-        # 3D graph
-        dcc.Graph(id='3d-graph', style={'height': '70vh', 'width': '50vw'}),
+        # Graphs
+        html.Div([
+            # Existing 3D graph
+            html.Div(dcc.Graph(id='3d-graph', style={'height': '70vh', 'width': '50vw'})),
 
-        # MORE STUFF HERE
+            # New Light waveform graph
+            html.Div(dcc.Graph(id="light-waveform", style={'height': '50vh', 'width': '35vw'})),
+
+            
+        ], style={'display': 'flex'}),
+        # New Another Graph (replace with your actual component)
+        html.Div(dcc.Graph(id="another-graph", style={'height': '30vh', 'width': '35vw', 'float': 'right'})),
     ]
 )
 
 
 # Callbacks
+
 
 # Callback to handle the upload
 # =============================
@@ -98,13 +108,13 @@ app.layout = html.Div(
     ],
     prevent_initial_call=True
 )
-def upload_file(is_completed, filename, filenames, upload_id):
+def upload_file(is_completed, current_filename, filenames, upload_id):
     """
     Upload HDF5 file to cache. If the upload is completed,
     update the filename. Initialise the event ID to 0.
     """
     if not is_completed:
-        return filename, "no file uploaded", 0, 0
+        raise PreventUpdate
 
     if filenames is not None:
         if upload_id:
@@ -112,9 +122,12 @@ def upload_file(is_completed, filename, filenames, upload_id):
         else:
             root_folder = Path(UPLOAD_FOLDER_ROOT)
         _, num_events = parse_contents(str(root_folder / filenames[0]))
-        return str(root_folder / filenames[0]), basename(filenames[0]), 0, num_events
+        new_filename = str(root_folder / filenames[0])
+        return new_filename, basename(filenames[0]), 0, num_events
 
-    return filename, "no file uploaded", 0, 0
+    return current_filename, "no file uploaded", 0, 0
+
+
 
 # Callbacks to handle the event ID
 # =================================
@@ -179,7 +192,24 @@ def update_graph(filename, evid):
     if filename is not None:
         data, _ = parse_contents(filename)
         return create_3d_figure(data, evid)
-
+    
+@app.callback(
+    Input('filename', 'data'),
+    Input('event-id', 'data'),
+    Input('3d-graph', 'figure'),
+    Input('3d-graph', 'clickData'),
+    Output('light-waveform', 'figure'),
+)
+def update_light_waveform(filename, evid, graph, click_data):
+    if click_data:
+        curvenum = int(click_data["points"][0]["curveNumber"])
+        print(curvenum) # this is the curve number from the clickdata of the graph
+        opid = int(graph['data'][curvenum]['ids'][0][0].split('_')[1])
+        print(opid) # the opid related to the curvenumber
+        if filename is not None:
+            data, _ = parse_contents(filename)
+            return plot_waveform(data, evid, opid)
+    return go.Figure()
 
 
 # Cleaning up
@@ -191,6 +221,7 @@ def clean_cache():
         shutil.rmtree(Path(UPLOAD_FOLDER_ROOT))
     except OSError as err:
         print("Can't clean %s : %s" % (UPLOAD_FOLDER_ROOT, err.strerror))
+
 
 # Run the app
 if __name__ == "__main__":
