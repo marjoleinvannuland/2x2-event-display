@@ -196,14 +196,18 @@ def update_graph(filename, evid):
 @app.callback(
     Input('filename', 'data'),
     Input('event-id', 'data'),
+    Input('3d-graph', 'figure'),
     Input('3d-graph', 'clickData'),
     Output('light-waveform', 'figure'),
 )
-def update_light_waveform(filename, evid, clickData):
-    if clickData is not None:
+def update_light_waveform(filename, evid, graph, click_data):
+    if click_data:
+        curvenum = int(click_data["points"][0]["curveNumber"])
+        print(curvenum) # this is the curve number from the clickdata of the graph
+        opid = int(graph['data'][curvenum]['ids'][0][0].split('_')[1])
+        print(opid) # the opid related to the curvenumber
         if filename is not None:
             data, _ = parse_contents(filename)
-            opid = clickData['points'][0]['curveNumber']
             return plot_waveform(data, evid, opid)
     return go.Figure()
 

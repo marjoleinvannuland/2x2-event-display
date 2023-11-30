@@ -426,6 +426,7 @@ def plot_light_traps(data, n_photons, op_indeces, max_integral):
                     opacity=0.4,
                     hoverinfo="text",
                     ids=[[opid_str, opid_str], [opid_str, opid_str]],
+                    customdata=[[opid_str, opid_str], [opid_str, opid_str]],
                     text=f"Optical detector {opid} waveform integral<br>{n_photons[opid]:.2e}",
                     colorscale=light_color,
                     showlegend=False,
@@ -466,6 +467,7 @@ def plot_waveform(data, evid, opid):
     
     fig.update_xaxes(title_text='Time [ticks] (1 ns)')
     fig.update_yaxes(title_text='Adc counts')
+    fig.update_layout(title_text=f'Waveform for optical detector {opid}')
     return fig
 
 
