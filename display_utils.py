@@ -412,11 +412,10 @@ def plot_light_traps(data, n_photons, op_indeces, max_integral):
                     type="surface", 
                     y=np.full(xx.shape, det_bounds[ix][0][0][iside + flip])/10 -240,
                     x=xx/10,
-                    z=zz/10+1300,
+                    z=zz+1300,
                     opacity=0.4,
                     hoverinfo="text",
                     ids=[[opid_str, opid_str], [opid_str, opid_str]],
-                    customdata=[[opid_str, opid_str], [opid_str, opid_str]],
                     text=f"Optical detector {opid} waveform integral<br>{n_photons[opid]:.2e}",
                     colorscale=light_color,
                     showlegend=False,
@@ -460,7 +459,44 @@ def plot_waveform(data, evid, opid):
     fig.update_layout(title_text=f'Waveform for optical detector {opid}')
     return fig
 
+def plot_charge(data, evid):
+    io_group = data[
+        "charge/events", "charge/calib_prompt_hits", "charge/packets", evid
+    ]["io_group"][0, :, 0]
+    time = data[
+        "charge/events", "charge/calib_prompt_hits", "charge/packets", evid
+    ]["timestamp"][0, :, 0]
+    charge = data[
+        "charge/events", "charge/calib_prompt_hits", "charge/packets", evid
+    ]["dataword"][0, :, 0]
 
+    fig = go.Figure()
+
+    for i in range(0, 8):
+        time_io = time[io_group == i + 1]
+        charge_io = charge[io_group == i + 1]
+
+        # Create the plot
+        fig.add_trace(
+            go.Histogram(
+                x=time_io,
+                y=charge_io,
+                nbinsx=20,
+                name=f"IO group {i+1}",
+                visible="legendonly",
+                showlegend=True,
+            ),
+        )
+
+        # Add labels and title
+        fig.update_xaxes(
+            title_text="packets timestamp",
+        )
+        fig.update_yaxes(
+            title_text="charge",
+        )
+    fig.update_layout()
+    return fig
 
 def get_continuous_color(colorscale, intermed):
     """

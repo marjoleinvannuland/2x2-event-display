@@ -12,9 +12,9 @@ from dash import dcc
 from dash import html
 #from dash import no_update
 from dash.exceptions import PreventUpdate
-from dash_extensions.enrich import Output, DashProxy, Input, State, MultiplexerTransform
+from dash_extensions.enrich import Output, DashProxy, Input, State
 
-from display_utils import parse_contents, create_3d_figure, plot_waveform
+from display_utils import parse_contents, create_3d_figure, plot_waveform, plot_charge
 
 from os.path import basename
 from pathlib import Path
@@ -36,7 +36,7 @@ app.layout = html.Div(
         dcc.Store(id='data-length', data=0),
         dcc.Store(id='event-time', data=0),
         # Header
-        html.H1(children="2x2 event display", style={"textAlign": "center"}),
+        html.H2(children="2x2 event display", style={"textAlign": "center"}),
         html.Div(children="", id="filename-div", style={"textAlign": "center"}),
         # Upload button
         html.Div(
@@ -85,7 +85,7 @@ app.layout = html.Div(
                         html.Div(dcc.Graph(id="light-waveform", style={'height': '35vh', 'width': '50vw'})),
 
                         # Charge graph on the bottom
-                        html.Div(dcc.Graph(id="another-graph", style={'height': '35vh', 'width': '50vw'})),
+                        html.Div(dcc.Graph(id="charge-hist", style={'height': '35vh', 'width': '50vw'})),
                     ],
                     style={'float': 'right'}
                 ),
@@ -139,8 +139,8 @@ def upload_file(is_completed, current_filename, filenames, upload_id):
 
 
 
-# Callbacks to handle the event ID
-# =================================
+# Callbacks to handle the event ID and time display
+# ==================================================
 @app.callback(
     Output('event-id', 'data', allow_duplicate=True),
     Input('next-button', 'n_clicks'),
@@ -203,6 +203,8 @@ def update_time(_,time):
     """Update the time display"""
     return f'Charge unix_ts: {time}'
 
+
+
 # Callback to display the event
 # =============================
 @app.callback(
@@ -237,6 +239,19 @@ def update_light_waveform(filename, evid, graph, click_data):
         except:
             print("That is not a light trap, no waveform to plot")
     return go.Figure()
+
+@app.callback(
+    Input('filename', 'data'),
+    Input('event-id', 'data'),
+    Output('charge-hist', 'figure'),
+)
+def update_charge_histogram(filename, evid):
+    """Update the charge graph when the event ID is changed"""
+    if filename is not None:
+        data, _ = parse_contents(filename)
+        return plot_charge(data, evid)
+    return go.Figure()
+
 
 
 # Cleaning up
