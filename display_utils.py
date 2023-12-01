@@ -16,7 +16,6 @@ def parse_contents(filename):
 
 def create_3d_figure(data, evid):
     fig = go.Figure()
-    print("here we go")
     # Select the hits for the current event
     prompthits_ev = data["charge/events", "charge/calib_prompt_hits", evid]
     finalhits_ev = data["charge/events", "charge/calib_final_hits", evid]
@@ -48,7 +47,6 @@ def create_3d_figure(data, evid):
             prompthits_segs = None
 
     # Plot the prompt hits
-    print("Plotting prompt hits")
     prompthits_traces = go.Scatter3d(
         x=prompthits_ev.data["x"].flatten(),
         y=(prompthits_ev.data["y"].flatten()),
@@ -76,11 +74,9 @@ def create_3d_figure(data, evid):
         customdata=prompthits_ev.data["E"].flatten() * 1000,
         hovertemplate="<b>x:%{x:.3f}</b><br>y:%{y:.3f}<br>z:%{z:.3f}<br>E:%{customdata:.3f}",
     )
-    print("Adding prompt hits to figure")
     fig.add_traces(prompthits_traces)
 
     # Plot the final hits
-    print("Plotting final hits")
     finalhits_traces = go.Scatter3d(
         x=finalhits_ev.data["x"].flatten(),
         y=(finalhits_ev.data["y"].flatten()),
@@ -108,10 +104,8 @@ def create_3d_figure(data, evid):
         customdata=finalhits_ev.data["E"].flatten() * 1000,
         hovertemplate="<b>x:%{x:.3f}</b><br>y:%{y:.3f}<br>z:%{z:.3f}<br>E:%{customdata:.3f}",
     )
-    print("Adding final hits to figure")
     fig.add_traces(finalhits_traces)
 
-    print("Plotting segments")
     if prompthits_segs is not None:
         segs_traces = plot_segs(
             prompthits_segs[0, :, 0, 0],
@@ -122,19 +116,15 @@ def create_3d_figure(data, evid):
             line_color="red",
             showlegend=True,
         )
-        print("Adding segments to figure")
         fig.add_traces(segs_traces)
 
     # Draw the TPC
-    print("Drawing TPC")
     tpc_center, anodes, cathodes = draw_tpc(sim_version)
     light_detectors = draw_light_detectors(data, evid)
 
-    print("Adding TPC to figure")
     fig.add_traces(tpc_center)
     fig.add_traces(anodes)
     fig.add_traces(cathodes)
-    print("Adding light detectors to figure")
     fig.add_traces(light_detectors)
 
     return fig

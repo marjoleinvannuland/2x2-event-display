@@ -32,7 +32,9 @@ app.layout = html.Div(
         # Hidden divs to store data
         dcc.Location(id="url"),
         dcc.Store(id="filename", storage_type="local", data=None),
+        dcc.Store(id='event-id', data=0),
         dcc.Store(id='data-length', data=0),
+        dcc.Store(id='event-time', data=0),
         # Header
         html.H1(children="2x2 event display", style={"textAlign": "center"}),
         html.Div(children="", id="filename-div", style={"textAlign": "center"}),
@@ -68,20 +70,28 @@ app.layout = html.Div(
         # Event ID buttons
         html.Button('Previous Event', id='prev-button', n_clicks=0),
         html.Button('Next Event', id='next-button', n_clicks=0),
-        dcc.Store(id='event-id', data=0),
         html.Div(id='evid-div', style={"textAlign": "center"}),
+        html.Div(children="", id='event-time-div'),
         # Graphs
-        html.Div([
-            # Existing 3D graph
-            html.Div(dcc.Graph(id='3d-graph', style={'height': '70vh', 'width': '50vw'})),
+        html.Div(
+            [
+                # Large 3D graph on the left
+                html.Div(dcc.Graph(id='3d-graph', style={'height': '70vh', 'width': '50vw', 'float': 'left'})),
 
-            # New Light waveform graph
-            html.Div(dcc.Graph(id="light-waveform", style={'height': '50vh', 'width': '35vw'})),
+                # Smaller Graphs on the right
+                html.Div(
+                    [
+                        # Light waveform graph on the top
+                        html.Div(dcc.Graph(id="light-waveform", style={'height': '35vh', 'width': '50vw'})),
 
-            
-        ], style={'display': 'flex'}),
-        # New Another Graph (replace with your actual component)
-        html.Div(dcc.Graph(id="another-graph", style={'height': '30vh', 'width': '35vw', 'float': 'right'})),
+                        # Charge graph on the bottom
+                        html.Div(dcc.Graph(id="another-graph", style={'height': '35vh', 'width': '50vw'})),
+                    ],
+                    style={'float': 'right'}
+                ),
+            ],
+            style={'display': 'flex'}
+        ),
     ]
 )
 
@@ -139,6 +149,7 @@ def upload_file(is_completed, current_filename, filenames, upload_id):
     prevent_initial_call=True
 )
 def increment(n, evid, max_value):
+    """Increment the event ID with the button"""
     if n > 0:
         new_evid = evid + 1
         if new_evid > max_value:  # wrap around
@@ -154,6 +165,7 @@ def increment(n, evid, max_value):
     prevent_initial_call=True
 )
 def decrement(n, evid, max_value):
+    """Decrement the event ID with the button"""
     if n > 0:
         if evid > 0:
             return evid - 1
@@ -166,6 +178,7 @@ def decrement(n, evid, max_value):
     prevent_initial_call=True
 )
 def set_evid(value, max_value):
+    """Set the event ID in the input box"""
     if value is not None:
         if value > max_value:  # not possible to go higher than max value
             return max_value
@@ -178,20 +191,32 @@ def set_evid(value, max_value):
     State('data-length', 'data'),
 )
 def update_div(evid, max_value):
+    """Update the event ID display"""
     return f'Event ID: {evid}/{max_value}'
+
+@app.callback(
+    Output('event-time-div', 'children'),
+    Input('event-id', 'data'),
+    State('event-time', 'data'),
+)
+def update_time(_,time):
+    """Update the time display"""
+    return f'Charge unix_ts: {time}'
 
 # Callback to display the event
 # =============================
 @app.callback(
     Output('3d-graph', 'figure'),
+    Output('event-time', 'data'),
     Input('filename', 'data'),
     Input('event-id', 'data'),
     prevent_initial_call=True
 )
 def update_graph(filename, evid):
+    """Update the 3D graph when the event ID is changed"""
     if filename is not None:
         data, _ = parse_contents(filename)
-        return create_3d_figure(data, evid)
+        return create_3d_figure(data, evid), data['charge/events', evid]["unix_ts"]
     
 @app.callback(
     Input('filename', 'data'),
@@ -201,14 +226,16 @@ def update_graph(filename, evid):
     Output('light-waveform', 'figure'),
 )
 def update_light_waveform(filename, evid, graph, click_data):
+    """Update the light waveform graph when the 3D graph is clicked"""
     if click_data:
         curvenum = int(click_data["points"][0]["curveNumber"])
-        print(curvenum) # this is the curve number from the clickdata of the graph
-        opid = int(graph['data'][curvenum]['ids'][0][0].split('_')[1])
-        print(opid) # the opid related to the curvenumber
-        if filename is not None:
-            data, _ = parse_contents(filename)
-            return plot_waveform(data, evid, opid)
+        try:
+            opid = int(graph['data'][curvenum]['ids'][0][0].split('_')[1])
+            if filename is not None:
+                data, _ = parse_contents(filename)
+                return plot_waveform(data, evid, opid)
+        except:
+            print("That is not a light trap, no waveform to plot")
     return go.Figure()
 
 
