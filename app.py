@@ -31,7 +31,7 @@ app.layout = html.Div(
     [
         # Hidden divs to store data
         dcc.Location(id="url"),
-        dcc.Store(id="filename", storage_type="local", data=None),
+        dcc.Store(id="filename", storage_type="local", data=""),
         dcc.Store(id='event-id', data=0),
         dcc.Store(id='data-length', data=0),
         dcc.Store(id='event-time', data=0),
@@ -54,6 +54,9 @@ app.layout = html.Div(
                 filetypes=["h5"],
             ),
         ),
+        # File input
+        dcc.Input(id='file-path', type='text', placeholder='Enter a file path'),
+        html.Button('Load File', id='load-button'),
         # Event ID input box
         dcc.Input(
                 id="input-evid",
@@ -129,14 +132,31 @@ def upload_file(is_completed, current_filename, filenames, upload_id):
     if filenames is not None:
         if upload_id:
             root_folder = Path(UPLOAD_FOLDER_ROOT) / upload_id
+            print(Path(UPLOAD_FOLDER_ROOT))
         else:
             root_folder = Path(UPLOAD_FOLDER_ROOT)
         _, num_events = parse_contents(str(root_folder / filenames[0]))
         new_filename = str(root_folder / filenames[0])
         return new_filename, basename(filenames[0]), 0, num_events
 
-    return current_filename, "no file uploaded", 0, 0
+    return "", "no file uploaded", 0, 0
 
+# Callback to handle file selection from path
+# ============================================
+@app.callback(
+    Input('load-button', 'n_clicks'),
+    Input('file-path', 'value'),
+    [
+        Output("filename", "data", allow_duplicate=True),
+        Output("filename-div", "children", allow_duplicate=True),
+        Output("event-id", "data", allow_duplicate=True),
+        Output('data-length', 'data', allow_duplicate=True),
+    ],
+)
+def load_file(n, file_path):
+    if n>0:
+        _, num_events = parse_contents(file_path)
+    return file_path, file_path, 0, num_events
 
 
 # Callbacks to handle the event ID and time display
@@ -218,7 +238,7 @@ def update_graph(filename, evid):
     """Update the 3D graph when the event ID is changed"""
     if filename is not None:
         data, _ = parse_contents(filename)
-        return create_3d_figure(data, evid), data['charge/events', evid]["unix_ts"]
+        return create_3d_figure(data, evid), data['charge/events', evid]["unix_ts"] # TODO: move to utils
     
 @app.callback(
     Input('filename', 'data'),

@@ -28,8 +28,8 @@ def create_3d_figure(data, evid):
             "mc_truth/segments",  # called segments in minirun4
             evid,
         ]
-        sim_version = "minirun4"
-        print("Found truth info in minirun4 format")
+        sim_version = "minirun5"
+        print("Found truth info in minirun5 format")
     except:
         print("No truth info in minirun4 format found")
         try:
@@ -103,6 +103,7 @@ def create_3d_figure(data, evid):
         opacity=0.7,
         customdata=finalhits_ev.data["E"].flatten() * 1000,
         hovertemplate="<b>x:%{x:.3f}</b><br>y:%{y:.3f}<br>z:%{z:.3f}<br>E:%{customdata:.3f}",
+        #render_mode="svg",
     )
     fig.add_traces(finalhits_traces)
 
@@ -130,9 +131,9 @@ def create_3d_figure(data, evid):
     return fig
 
 
-def plot_segs(segs, sim_version="minirun4", **kwargs):
+def plot_segs(segs, sim_version="minirun5", **kwargs):
     def to_list(axis):
-        if sim_version == "minirun4":
+        if sim_version == "minirun5" or sim_version == "minirun4":
             nice_array = np.column_stack(
                 [segs[f"{axis}_start"], segs[f"{axis}_end"], np.full(len(segs), None)]
             ).flatten()
@@ -153,7 +154,7 @@ def plot_segs(segs, sim_version="minirun4", **kwargs):
     return trace
 
 
-def draw_tpc(sim_version="minirun4"):
+def draw_tpc(sim_version="minirun5"):
     anode_xs = np.array([-63.931, -3.069, 3.069, 63.931])
     anode_ys = np.array([-19.8543, 103.8543])  # two ys
     anode_zs = np.array([-64.3163, -2.6837, 2.6837, 64.3163])  # four zs
@@ -166,6 +167,10 @@ def draw_tpc(sim_version="minirun4"):
         anode_xs = anode_xs * 10
         anode_ys = anode_ys * 10
         anode_zs = anode_zs * 10
+    if sim_version == "minirun5": # hit coordinates are in cm
+        detector_center = (0, 0, 0)
+        anode_ys = anode_ys - 42
+
 
     center = go.Scatter3d(
         x=[detector_center[0]],
@@ -410,9 +415,9 @@ def plot_light_traps(data, n_photons, op_indeces, max_integral):
                 opid_str = f"opid_{opid}"
                 light_plane = dict(
                     type="surface", 
-                    y=np.full(xx.shape, det_bounds[ix][0][0][iside + flip])/10 -240,
-                    x=xx/10,
-                    z=zz+1300,
+                    y=np.full(xx.shape, det_bounds[ix][0][0][iside + flip]),
+                    x=xx,
+                    z=zz,
                     opacity=0.4,
                     hoverinfo="text",
                     ids=[[opid_str, opid_str], [opid_str, opid_str]],
