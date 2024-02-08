@@ -1,6 +1,7 @@
 """
 Utility functions for displaying data in the app
 """
+
 # TODO: remove dependency on h5flow
 import h5flow
 import numpy as np
@@ -103,7 +104,7 @@ def create_3d_figure(data, evid):
         opacity=0.7,
         customdata=finalhits_ev.data["E"].flatten() * 1000,
         hovertemplate="<b>x:%{x:.3f}</b><br>y:%{y:.3f}<br>z:%{z:.3f}<br>E:%{customdata:.3f}",
-        #render_mode="svg",
+        # render_mode="svg",
     )
     fig.add_traces(finalhits_traces)
 
@@ -149,7 +150,7 @@ def plot_segs(segs, sim_version="minirun5", **kwargs):
 
     x, y, z = (to_list(axis) for axis in "xyz")
 
-    trace = go.Scatter3d(x=x, y=y, z=z, **kwargs)
+    trace = go.Scatter3d(x=z, y=y, z=x, **kwargs)
 
     return trace
 
@@ -167,10 +168,9 @@ def draw_tpc(sim_version="minirun5"):
         anode_xs = anode_xs * 10
         anode_ys = anode_ys * 10
         anode_zs = anode_zs * 10
-    if sim_version == "minirun5": # hit coordinates are in cm
+    if sim_version == "minirun5":  # hit coordinates are in cm
         detector_center = (0, 0, 0)
         anode_ys = anode_ys - 42
-
 
     center = go.Scatter3d(
         x=[detector_center[0]],
@@ -340,96 +340,71 @@ def get_waveforms_all_detectors(data, match_light):
 def plot_light_traps(data, n_photons, op_indeces, max_integral):
     """Plot optical detectors"""
     drawn_objects = []
-    ys = np.flip(
-        np.array(
-            [
-                -595.43,
-                -545.68,
-                -490.48,
-                -440.73,
-                -385.53,
-                -335.78,
-                -283.65,
-                -236.65,
-                -178.70,
-                -131.70,
-                -73.75,
-                -26.75,
-                25.38,
-                75.13,
-                130.33,
-                180.08,
-                235.28,
-                285.03,
-                337.15,
-                384.15,
-                442.10,
-                489.10,
-                547.05,
-                594.05,
-            ]
-        )
-        / 10
-    )
-    light_width = ys[1] - ys[0]
 
     det_bounds = data["/geometry_info/det_bounds/data"]
+    channel_map = np.array([0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 65, 73, 81, 89, 97, 105, 113, 121, 1, 9, 17, 25, 33, 41, 49, 57, 2, 10, 18, 26,
+                34, 42, 50, 58, 66, 74, 82, 90, 98, 106, 114, 122, 67, 75, 83, 91, 99, 107, 115, 123, 3, 11, 19, 27, 35, 43, 51, 59, 4, 12, 20, 28, 36, 44, 52,
+                  60, 68, 76, 84, 92, 100, 108, 116, 124, 69, 77, 85, 93, 101, 109, 117, 125, 5, 13, 21, 29, 37, 45, 53, 61, 6, 14, 22, 30, 38, 46, 54, 62, 70,
+                    78, 86, 94, 102, 110, 118, 126, 71, 79, 87, 95, 103, 111, 119, 127, 7, 15, 23, 31, 39, 47, 55, 63])
+    # we need to invert the mapping because I'm stupid
+    channel_map = np.argsort(channel_map)
+
+    xs = []
+    ys = []
+    zs = []
+    for i in range(len(det_bounds)):
+        if det_bounds[i][1] == True:
+            xs.append([det_bounds[i][0][0][0], det_bounds[i][0][1][0]])
+            ys.append([det_bounds[i][0][0][1], det_bounds[i][0][1][1]])
+            zs.append([det_bounds[i][0][0][2], det_bounds[i][0][1][2]])
+
     COLORSCALE = plotly.colors.make_colorscale(
         plotly.colors.convert_colors_to_same_type(plotly.colors.sequential.YlOrRd)[0]
     )
 
-    for ix in range(0, det_bounds.shape[0]):
-        for ilight, light_y in enumerate(ys):
-            for iside in range(2):
-                opid = ilight + iside * len(ys) + ix * len(ys) * 2
-                if opid not in op_indeces:
-                    continue
-                xx = np.linspace(det_bounds[ix][0][0][0], det_bounds[ix][0][1][0], 2)
-                zz = np.linspace(
-                    light_y - light_width / 2 + det_bounds[0][0][1] + 0.25,
-                    light_y + light_width / 2 + det_bounds[0][0][1] - 0.25,
-                    2,
-                )
+    channel_dict = {}
+    for i in range(0, 128, 4):
+        j=i*3
+        channel_dict[i] = [j, j+1, j+2, j+3, j+4, j+5] # arclight channels
+        channel_dict[i+1] = [j+6, j+7] # lcm channels
+        channel_dict[i+2] = [j+8, j+9]
+        channel_dict[i+3] = [j+10, j+11]
 
-                xx, zz = np.meshgrid(xx, zz)
-                light_color = [
-                    [
-                        0.0,
-                        get_continuous_color(
-                            COLORSCALE, intermed=max(0, n_photons[opid]) / max_integral
-                        ),
-                    ],
-                    [
-                        1.0,
-                        get_continuous_color(
-                            COLORSCALE, intermed=max(0, n_photons[opid]) / max_integral
-                        ),
-                    ],
-                ]
+    for i in range(len(xs)):
+        opid = channel_map[i]
+        sipms = channel_dict[opid]
+        opid_str = f"opid_{opid}"
+        light_color = [
+            [
+                0.0,
+                get_continuous_color(
+                    COLORSCALE, intermed=max(0, sum(n_photons[sipms])) / max_integral
+                ),
+            ],
+            [
+                1.0,
+                get_continuous_color(
+                    COLORSCALE, intermed=max(0, sum(n_photons[sipms])) / max_integral
+                ),
+            ],
+        ]
+        light_plane = go.Surface(
+            x=xs[i],
+            y=ys[i],
+            z=[zs[i], zs[i]],
+            colorscale=light_color,
+            showscale=False,
+            showlegend=False,
+            opacity=0.2,
+            hoverinfo="text",
+            ids=[[opid_str, opid_str], [opid_str, opid_str]],
+            text=f"Optical detector {opid} waveform integral<br>{sum(n_photons[sipms]):.2e}",
+        )
 
-                if ix % 2 == 0:
-                    flip = 0
-                else:
-                    flip = -1
-
-                opid_str = f"opid_{opid}"
-                light_plane = dict(
-                    type="surface", 
-                    y=np.full(xx.shape, det_bounds[ix][0][0][iside + flip]),
-                    x=xx,
-                    z=zz,
-                    opacity=0.4,
-                    hoverinfo="text",
-                    ids=[[opid_str, opid_str], [opid_str, opid_str]],
-                    text=f"Optical detector {opid} waveform integral<br>{n_photons[opid]:.2e}",
-                    colorscale=light_color,
-                    showlegend=False,
-                    showscale=False,
-                )
-
-                drawn_objects.append(light_plane)
+        drawn_objects.append(light_plane)
 
     return drawn_objects
+
 
 def plot_waveform(data, evid, opid):
     try:
@@ -452,28 +427,39 @@ def plot_waveform(data, evid, opid):
 
     fig = go.Figure()
     waveforms_all_detectors = get_waveforms_all_detectors(data, match_light)
-    wvfm_opid = waveforms_all_detectors[:, opid, :]
-    
+
+    channel_dict = {}
+    for i in range(0, 128, 4):
+        j=i*3
+        channel_dict[i] = [j, j+1, j+2, j+3, j+4, j+5, j+6] # arclight channels
+        channel_dict[i+1] = [j+7, j+8] # lcm channels
+        channel_dict[i+2] = [j+9, j+10]
+        channel_dict[i+3] = [j+11, j+12]
+    wvfm_opid = waveforms_all_detectors[:, channel_dict[opid], :]
+
     x = np.arange(0, 1000, 1)
-    y = np.sum(wvfm_opid, axis=0)
-    drawn_objects = go.Scatter(x=x, y=y)
+    y = np.sum(np.sum(wvfm_opid, axis=0),axis=0)
+    drawn_objects = go.Scatter(x=x, y=y, name=f"Channel sum for light trap {opid}", visible=True, showlegend=True)
     fig.add_traces(drawn_objects)
-    
-    fig.update_xaxes(title_text='Time [ticks] (1 ns)')
-    fig.update_yaxes(title_text='Adc counts')
-    fig.update_layout(title_text=f'Waveform for optical detector {opid}')
+    for i in range(0, wvfm_opid.shape[1]):
+        fig.add_traces(go.Scatter(x=x, y=np.sum(wvfm_opid, axis=0)[i, : ], visible="legendonly", showlegend=True, name=f"Channel {channel_dict[opid][i]}"))
+
+    fig.update_xaxes(title_text="Time [ticks] (16 ns)")
+    fig.update_yaxes(title_text="Adc counts")
+    fig.update_layout(title_text=f"Waveform for light trap {opid}")
     return fig
+
 
 def plot_charge(data, evid):
     io_group = data[
         "charge/events", "charge/calib_prompt_hits", "charge/packets", evid
     ]["io_group"][0, :, 0]
-    time = data[
-        "charge/events", "charge/calib_prompt_hits", "charge/packets", evid
-    ]["timestamp"][0, :, 0]
-    charge = data[
-        "charge/events", "charge/calib_prompt_hits", "charge/packets", evid
-    ]["dataword"][0, :, 0]
+    time = data["charge/events", "charge/calib_prompt_hits", "charge/packets", evid][
+        "timestamp"
+    ][0, :, 0]
+    charge = data["charge/events", "charge/calib_prompt_hits", "charge/packets", evid][
+        "dataword"
+    ][0, :, 0]
 
     fig = go.Figure()
 
@@ -502,6 +488,7 @@ def plot_charge(data, evid):
         )
     fig.update_layout()
     return fig
+
 
 def get_continuous_color(colorscale, intermed):
     """
