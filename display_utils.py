@@ -263,7 +263,7 @@ def match_light_to_charge_event(charge, light, evid):
     """
     matches = []
     for i in range(len(light)):
-        if np.abs(light["utime_ms"][i][0] / 1000 - charge["unix_ts"][0]) < 0.5:
+        if np.abs(light["utime_ms"][i][0] / 1000 - charge["unix_ts"][0]) < 0.7:
             matches.append([charge["id"][0], light["id"][i]])
 
     match_light = []
@@ -398,7 +398,7 @@ def plot_light_traps(data, n_photons, op_indeces, max_integral):
             opacity=0.2,
             hoverinfo="text",
             ids=[[opid_str, opid_str], [opid_str, opid_str]],
-            text=f"Optical detector {opid} waveform integral<br>{sum(n_photons[sipms]):.2e}",
+            text=f"Optical detector {opid} waveform integral<br>{sum(n_photons[sipms])/max_integral:.2e}",
         )
 
         drawn_objects.append(light_plane)
